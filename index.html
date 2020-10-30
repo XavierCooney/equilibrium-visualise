@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xavier's Equilbira Visualisation</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <h1>Xavier's Equilbria Visualisation</h1>
+    <div id="input-set">
+        <label for="size-selector" class="input-boxed">
+            Slots
+            <input type="range" id="size-selector" min="0" max="1" step="0.01">
+        </label>
+        <label for="k-selector" class="input-boxed">
+            K<sub>eq</sub>
+            <input type="range" id="k-selector" min="0" max="1" step="0.01">
+            <span id="k-val-out">
+                <span id="k-significand"></span> &times;
+                10<sup><span id="k-exponent"></span></sup>
+            </span>
+        </label>
+        <label for="reaction-rate-selector" class="input-boxed">
+            Total reaction rate
+            <input type="range" id="reaction-rate-selector" min="0" max="1" step="0.01">
+        </label>
+        <span class="input-boxed">r<sub>f</sub>: <span id="r_f-out"></span>, r<sub>r</sub>: <span id="r_r-out"></span></span>
+    </div>
+    <div id="addition-btns">
+        <div id="left-tab">
+            <span id="addition-btns-left"></span>
+            <span id="left-status">Hi</span>
+        </div>
+        <div id="right-tab">
+            <span id="right-status">Hi</span>
+            <span id="addition-btns-right"></span>
+        </div>
+    </div>
+    <div id="canv-container">
+        <canvas id="main-canv"></canvas>
+    </div>
+    <script src="./equilibria.js"></script>
+</body>
+</html>

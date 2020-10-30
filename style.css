@@ -1,0 +1,47 @@
+* {
+    box-sizing: border-box;
+    font-variant-numeric: tabular-nums;
+}
+body {
+    width: 100%;
+    margin: 0px;
+    padding-left: 3em;
+    padding-right: 3em;
+}
+body {
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+h1 {
+    text-align: center;
+}
+#main-canv {
+    border: 1px solid black;
+    margin-left: 5%;
+    width: 90%;
+    border-radius: 10px;
+}
+#canv-container {
+    margin: 25px;
+}
+#input-set .input-boxed {
+    display: inline-block;
+    margin: 5px;
+    padding: 5px;
+    border-radius: 5px;
+    border: 1px solid black;
+}
+
+#left-tab {
+    float: left;
+}
+#right-tab {
+    float: right;
+}
+#addition-btns {
+    padding: 20px;
+}
+#addition-btns button {
+    margin: 3px;
+    padding: 7px;
+    font-weight: bolder;
+}
