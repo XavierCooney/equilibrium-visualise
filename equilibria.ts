@@ -6,24 +6,33 @@ function assert(cond: boolean, msg?: string): asserts cond {
 }
 
 const main_canv = <HTMLCanvasElement> document.getElementById('main-canv');
+const graph_canv = <HTMLCanvasElement> document.getElementById('graph-canv');
 
 const WIDTH = 1500;
-const HEIGHT = WIDTH / 3;
+const HEIGHT = WIDTH / 5 * 2;
 
-const SECTION_WIDTH = WIDTH / 3;
+const SECTION_WIDTH = WIDTH / 5 * 2;
 const SECTION_PADDING = 20;
+
+const GRAPH_WIDTH = 1000;
+const GRAPH_HEIGHT = 150;
+
 
 main_canv.width = WIDTH;
 main_canv.height = HEIGHT;
 
-function get_canv_context() {
-    const ctx = main_canv.getContext('2d');
+graph_canv.width = GRAPH_WIDTH;
+graph_canv.height = GRAPH_HEIGHT;
+
+function get_canv_context(canv: HTMLCanvasElement) {
+    const ctx = canv.getContext('2d');
     assert(ctx !== null);
     return ctx;
 }
-const canv_ctx = get_canv_context();
+const canv_ctx = get_canv_context(main_canv);
+const graph_ctx = get_canv_context(graph_canv);
 
-const input_element_ids = ['size-selector', 'k-selector', 'reaction-rate-selector']
+const input_element_ids = ['size-selector', 'k-selector', 'reaction-rate-selector', 'is-probabalistic-checkbox', 'show-empty-checkbox']
 
 
 let grid_size: number;
@@ -33,6 +42,8 @@ let k_val: number;
 let total_reaction_rate: number;
 let forward_reaction_rate: number;
 let reverse_reaction_rate: number;
+let is_probabalistic: boolean;
+let show_empty_grid: boolean;
 
 enum Side {
     A = 'A',
@@ -149,10 +160,11 @@ class MarbleAllocation {
                 canv_ctx.beginPath();
                 canv_ctx.arc(x, y, ball_size / 3, 0, Math.PI * 2);
                 canv_ctx.closePath();
-                canv_ctx.lineWidth = 0.6;
-                // canv_ctx.stroke();
                 if(usage == MarbleUsage.Yes) {
                     canv_ctx.fill();
+                } else if(show_empty_grid) {
+                    canv_ctx.lineWidth = 0.6;
+                    canv_ctx.stroke();
                 }
                 canv_ctx.restore();
             }
@@ -177,8 +189,6 @@ class MarbleAllocation {
             canv_ctx.beginPath();
             canv_ctx.arc(x, y, ball_size / 3, 0, Math.PI * 2);
             canv_ctx.closePath();
-            canv_ctx.lineWidth = 0.6;
-            canv_ctx.stroke();
 
             let actual_col = this.colour.map((this_col, col_idx) => {
                 return proportion * (this_col - transit.from_col[col_idx]) + transit.from_col[col_idx];
@@ -247,7 +257,12 @@ class MarbleAllocation {
 
     react_to_form(reaction_rate: number, other_allocation: MarbleAllocation) {
         let expected_to_go = reaction_rate * this.used.length;
-        let actually_gone = Math.round(poisson(expected_to_go));
+        let actually_gone;
+        if(is_probabalistic) {
+            actually_gone = Math.round(poisson(expected_to_go));
+        } else {
+            actually_gone = Math.round(expected_to_go);
+        }
 
         for(let i = 0; i < actually_gone; ++i) {
             if(this.used.length === 0) {
@@ -269,14 +284,17 @@ class MarbleAllocation {
         }
     }
 
+    get_actual_total() {
+        return grid_size * grid_size - this.free.length;
+    }
     get_status() {
-        return `Total: ${this.used.length}`;
+        return `Apparent: ${this.used.length}, total: ${this.get_actual_total()}`;
     }
 };
 
 const marble_grids = {
-    [Side.A]: new MarbleAllocation(SECTION_WIDTH * 0, [0, 255, 0]),
-    [Side.B]: new MarbleAllocation(SECTION_WIDTH * 2, [0, 0, 255])
+    [Side.A]: new MarbleAllocation(SECTION_WIDTH * 0, [0, 0, 255]),
+    [Side.B]: new MarbleAllocation(WIDTH - SECTION_WIDTH, [255, 0, 0])
 }
 
 function pos_to_xy(pos: string) {
@@ -298,19 +316,22 @@ function read_inputs() {
     marble_grids[Side.B].reallocate();
 
     const k_selector = parseFloat((<HTMLInputElement> document.getElementById('k-selector')).value);
-    k_val = Math.pow(10, k_selector * 8 - 4);
+    k_val = Math.pow(10, k_selector * 6 - 3);
 
     (document.getElementById('k-significand') as HTMLSpanElement).innerText = k_val.toExponential(2).split('e')[0];
     (document.getElementById('k-exponent') as HTMLSpanElement).innerText = k_val.toExponential(2).split('e')[1].replace('+','');
 
     const total_reaction_rate_selector = parseFloat((<HTMLInputElement> document.getElementById('reaction-rate-selector')).value);
-    total_reaction_rate = total_reaction_rate_selector * 9.9 + 0.1;
+    total_reaction_rate = total_reaction_rate_selector * 10 + 0;
 
     reverse_reaction_rate = total_reaction_rate / (k_val + 1);
     forward_reaction_rate = total_reaction_rate - reverse_reaction_rate;
 
-    (document.getElementById('r_f-out') as HTMLSpanElement).innerText = forward_reaction_rate.toFixed(4);
-    (document.getElementById('r_r-out') as HTMLSpanElement).innerText = reverse_reaction_rate.toFixed(4);
+    (document.getElementById('r_f-out') as HTMLSpanElement).innerText = (forward_reaction_rate / 2.5).toFixed(4);
+    (document.getElementById('r_r-out') as HTMLSpanElement).innerText = (reverse_reaction_rate / 2.5).toFixed(4);
+
+    is_probabalistic = (document.getElementById('is-probabalistic-checkbox') as HTMLInputElement).checked;
+    show_empty_grid = (document.getElementById('show-empty-checkbox') as HTMLInputElement).checked;
 }
 read_inputs();
 
@@ -321,15 +342,20 @@ for(let id of input_element_ids) {
 marble_grids.A.add_buttons(document.getElementById('addition-btns-left') as HTMLDivElement, [-40, -20, -5, -1, 5, 20, 40]);
 marble_grids.B.add_buttons(document.getElementById('addition-btns-right') as HTMLDivElement, [-40, -20, -5, -1, 5, 20, 40]);
 
-const REACTIONS_PER_SEC = 4;
 const RATE_CONSTANT = 0.025;
 let last_reaction_time = +new Date();
 function possibly_do_reaction() {
-    if(+new Date() > last_reaction_time + 1000 / REACTIONS_PER_SEC) {
+    let reactions_per_sec = is_probabalistic ? 5 : 3;
+    if(+new Date() > last_reaction_time + 1000 / reactions_per_sec) {
         last_reaction_time = +new Date();
-        marble_grids[Side.A].react_to_form(forward_reaction_rate / REACTIONS_PER_SEC * RATE_CONSTANT , marble_grids[Side.B]);
-        marble_grids[Side.B].react_to_form(reverse_reaction_rate / REACTIONS_PER_SEC * RATE_CONSTANT , marble_grids[Side.A]);
+        marble_grids[Side.A].react_to_form(forward_reaction_rate / reactions_per_sec * RATE_CONSTANT , marble_grids[Side.B]);
+        marble_grids[Side.B].react_to_form(reverse_reaction_rate / reactions_per_sec * RATE_CONSTANT , marble_grids[Side.A]);
+
+        // add_graph_data_point([
+        //     marble_grids[Side.A].used.length, marble_grids[Side.B].used.length
+        // ], 1 / REACTIONS_PER_SEC);
     }
+    add_grap_data_high_freq([marble_grids[Side.A].get_actual_total(), marble_grids[Side.B].get_actual_total()]);
 }
 
 function render() {
@@ -341,7 +367,86 @@ function render() {
     (document.getElementById('left-status') as HTMLSpanElement).innerText = marble_grids[Side.A].get_status();
     (document.getElementById('right-status') as HTMLSpanElement).innerText = marble_grids[Side.B].get_status();
 
+    process_and_render_graph();
+
     requestAnimationFrame(render);
+}
+
+const GRAPH_TIME_WIDTH = 25;
+
+let graph_data: {data: number[], time: number }[] = [];
+let max_graph_height: number;
+let start_graph_index: number;
+let effective_graph_time: number;
+let last_data_add_high_freq: number
+
+function reset_graph() {
+    graph_data = [];
+    max_graph_height = 5;
+    start_graph_index = 0;
+    effective_graph_time = 0;
+    last_data_add_high_freq = +new Date();
+}
+reset_graph();
+
+document.getElementById('reset-graph-btn')?.addEventListener('click', e => {
+    reset_graph();
+});
+
+function add_grap_data_high_freq(data: number[]) {
+    let current = +new Date();
+    let dt = (current - last_data_add_high_freq) / 1000;
+    if(dt > 0.05) {
+        last_data_add_high_freq = current;
+        dt = Math.min(dt, 0.15);
+        add_graph_data_point(data, dt);
+    }
+}
+
+function add_graph_data_point(data: number[], dt: number) {
+    effective_graph_time += dt;
+    graph_data.push({ data: data, time: effective_graph_time });
+    max_graph_height = Math.max(max_graph_height, Math.max(...data) * 1.1);
+}
+
+function process_and_render_graph() {
+    const GRAPH_START_TIME = effective_graph_time - GRAPH_TIME_WIDTH;
+
+    if(start_graph_index > graph_data.length / 2) {
+        // should be asymptotic complexity
+        graph_data = graph_data.filter((value, index) => index >= start_graph_index);
+        start_graph_index = 0;
+    }
+
+    while(start_graph_index + 1 < graph_data.length && graph_data[start_graph_index].time < GRAPH_START_TIME) {
+        start_graph_index++;
+    }
+
+    graph_ctx.save();
+    graph_ctx.clearRect(0, 0, GRAPH_WIDTH, GRAPH_HEIGHT);
+    for(let trace_num of [0, 1]) {
+        graph_ctx.save();
+        graph_ctx.lineWidth = 3.5;
+        graph_ctx.lineJoin = "round";
+        graph_ctx.strokeStyle = `rgba(${marble_grids[({0: 'A', 1: 'B'}[trace_num as (0 | 1)]) as Side].get_col_string()}, 0.7)`;
+        graph_ctx.beginPath();
+        
+        if(start_graph_index < graph_data.length) {
+            let start_x = (graph_data[start_graph_index].time - effective_graph_time + GRAPH_TIME_WIDTH) / GRAPH_TIME_WIDTH * GRAPH_WIDTH;
+            let start_y = GRAPH_HEIGHT - graph_data[start_graph_index].data[trace_num] / max_graph_height * GRAPH_HEIGHT;
+            graph_ctx.moveTo(start_x, start_y);
+        }
+        
+        for(let i = start_graph_index; i < graph_data.length; ++i) {
+            let x = (graph_data[i].time - effective_graph_time + GRAPH_TIME_WIDTH) / GRAPH_TIME_WIDTH * GRAPH_WIDTH;
+            let y = GRAPH_HEIGHT - graph_data[i].data[trace_num] / max_graph_height * GRAPH_HEIGHT;
+            graph_ctx.lineTo(x, y);
+        }
+    
+        graph_ctx.stroke();
+        graph_ctx.restore();
+    }
+    graph_ctx.restore();
 }
 
 

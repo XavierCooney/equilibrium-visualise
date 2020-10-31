@@ -16,12 +16,27 @@ h1 {
 }
 #main-canv {
     border: 1px solid black;
-    margin-left: 5%;
-    width: 90%;
+    margin-left: 20%;
+    width: 60%;
     border-radius: 10px;
 }
 #canv-container {
     margin: 25px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+#graph-canv {
+    border: 1px solid black;
+    width: 100%;
+    border-radius: 10px;
+}
+#graph-container {
+    margin: 5px;
+}
+#input-set {
+    display: flex;
+    flex-flow: wrap;
+    justify-content: center;
 }
 #input-set .input-boxed {
     display: inline-block;

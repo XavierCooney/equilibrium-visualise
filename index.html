@@ -25,7 +25,19 @@
             Total reaction rate
             <input type="range" id="reaction-rate-selector" min="0" max="1" step="0.01">
         </label>
+        <br />
         <span class="input-boxed">r<sub>f</sub>: <span id="r_f-out"></span>, r<sub>r</sub>: <span id="r_r-out"></span></span>
+        <span class="input-boxed">
+            <button id="reset-graph-btn">Reset graph</button>
+        </span>
+        <label for="is-probabalistic-checkbox" class="input-boxed">
+            Probabalistic
+            <input type="checkbox" id="is-probabalistic-checkbox" checked>
+        </label>
+        <label for="show-empty-checkbox" class="input-boxed">
+            Show empty
+            <input type="checkbox" id="show-empty-checkbox" checked>
+        </label>
     </div>
     <div id="addition-btns">
         <div id="left-tab">
@@ -39,6 +51,9 @@
     </div>
     <div id="canv-container">
         <canvas id="main-canv"></canvas>
+    </div>
+    <div id="graph-container">
+        <canvas id="graph-canv"></canvas>
     </div>
     <script src="./equilibria.js"></script>
 </body>
