@@ -11,11 +11,11 @@
     <div id="input-set">
         <label for="size-selector" class="input-boxed">
             Slots
-            <input type="range" id="size-selector" min="0" max="1" step="0.01">
+            <input type="range" id="size-selector" min="0" max="1" step="0.01" value="0.75">
         </label>
         <label for="k-selector" class="input-boxed">
             K<sub>eq</sub>
-            <input type="range" id="k-selector" min="0" max="1" step="0.01">
+            <input type="range" id="k-selector" min="0" max="1" step="0.005">
             <span id="k-val-out">
                 <span id="k-significand"></span> &times;
                 10<sup><span id="k-exponent"></span></sup>
@@ -23,20 +23,24 @@
         </label>
         <label for="reaction-rate-selector" class="input-boxed">
             Total reaction rate
-            <input type="range" id="reaction-rate-selector" min="0" max="1" step="0.01">
+            <input type="range" id="reaction-rate-selector" min="0" max="1" step="0.00001" value="0.33333">
         </label>
         <br />
         <span class="input-boxed">r<sub>f</sub>: <span id="r_f-out"></span>, r<sub>r</sub>: <span id="r_r-out"></span></span>
         <span class="input-boxed">
             <button id="reset-graph-btn">Reset graph</button>
         </span>
-        <label for="is-probabalistic-checkbox" class="input-boxed">
-            Probabalistic
-            <input type="checkbox" id="is-probabalistic-checkbox" checked>
+        <label for="is-probabilistic-checkbox" class="input-boxed">
+            Probabilistic
+            <input type="checkbox" id="is-probabilistic-checkbox">
         </label>
         <label for="show-empty-checkbox" class="input-boxed">
             Show empty
-            <input type="checkbox" id="show-empty-checkbox" checked>
+            <input type="checkbox" id="show-empty-checkbox">
+        </label>
+        <label for="slow-graph-checkbox" class="input-boxed">
+            Slow graph
+            <input type="checkbox" id="slow-graph-checkbox">
         </label>
     </div>
     <div id="addition-btns">
@@ -44,6 +48,7 @@
             <span id="addition-btns-left"></span>
             <span id="left-status">Hi</span>
         </div>
+        <div id="center-tab"></div>
         <div id="right-tab">
             <span id="right-status">Hi</span>
             <span id="addition-btns-right"></span>
