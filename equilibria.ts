@@ -46,6 +46,7 @@ let is_probabilistic: boolean;
 let show_empty_grid: boolean;
 let slow_graph: boolean;
 
+let net_forward_reaction_amounts: number[] = [];
 let forward_reaction_reserve = 0; // for forcing correct in non probabilistic model
 let reverse_reaction_reserve = 0;
 
@@ -167,8 +168,6 @@ class MarbleAllocation {
     }
 
     render() {
-        let x = this.starting_x + SECTION_PADDING;
-
         canv_ctx.save();
         canv_ctx.fillStyle = `rgb(${this.get_col_string()})`;
 
@@ -365,15 +364,15 @@ let last_reaction_time = +new Date();
 function possibly_do_reaction() {
     let reactions_per_sec = is_probabilistic ? 5 : 20;
     if(+new Date() > last_reaction_time + 1000 / reactions_per_sec) {
-        let effective_forward_rate = forward_reaction_rate / reactions_per_sec * RATE_CONSTANT;
-        let effective_reverse_rate = reverse_reaction_rate / reactions_per_sec * RATE_CONSTANT;
+        const effective_forward_rate = forward_reaction_rate / reactions_per_sec * RATE_CONSTANT;
+        const effective_reverse_rate = reverse_reaction_rate / reactions_per_sec * RATE_CONSTANT;
 
         last_reaction_time = +new Date();
 
-        if(!is_probabilistic) {
-            let total_forward = effective_forward_rate * marble_grids[Side.A].get_actual_total();
-            let total_reverse = effective_reverse_rate * marble_grids[Side.B].get_actual_total();
+        let total_forward = effective_forward_rate * marble_grids[Side.A].get_actual_total();
+        let total_reverse = effective_reverse_rate * marble_grids[Side.B].get_actual_total();
 
+        if(!is_probabilistic) {
             let actual_forward = Math.floor(total_forward);
             let actual_reverse = Math.floor(total_reverse);
 
@@ -396,6 +395,11 @@ function possibly_do_reaction() {
             marble_grids[Side.B].react_to_form(effective_reverse_rate, marble_grids[Side.A], null);
         }
 
+        net_forward_reaction_amounts.push((total_forward - total_reverse) * reactions_per_sec);
+        if(net_forward_reaction_amounts.length > 3 && net_forward_reaction_amounts.length > reactions_per_sec / 2) {
+            net_forward_reaction_amounts.shift();
+        }
+
         // add_graph_data_point([
         //     marble_grids[Side.A].used.length, marble_grids[Side.B].used.length
         // ], 1 / REACTIONS_PER_SEC);
@@ -406,8 +410,11 @@ function update_displays() {
     const a_total = marble_grids[Side.A].get_actual_total();
     const b_total = marble_grids[Side.B].get_actual_total();
 
-    if(a_total && b_total) {
-        (document.getElementById('center-tab') as HTMLDivElement).innerHTML = `${1} : ${(b_total / a_total).toFixed(3)}`;
+    if(a_total && b_total && net_forward_reaction_amounts.length) {
+        let average_forward = net_forward_reaction_amounts.reduce((a, b) => a + b) / net_forward_reaction_amounts.length;
+        (document.getElementById('center-tab') as HTMLDivElement).innerHTML = `
+            ${1} : ${(b_total / a_total).toFixed(3)} <br/> ${average_forward.toFixed(2)}
+        `;
     } else {
         (document.getElementById('center-tab') as HTMLDivElement).innerHTML = ``;
     }
