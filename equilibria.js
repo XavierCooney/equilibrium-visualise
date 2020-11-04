@@ -15,6 +15,8 @@ var SECTION_WIDTH = WIDTH / 5 * 2;
 var SECTION_PADDING = 20;
 var GRAPH_WIDTH = 1000;
 var GRAPH_HEIGHT = 150;
+var GRAPH_BOTTOM_MARGIN = 35;
+var GRAPH_LEFT_MARGIN = 50;
 main_canv.width = WIDTH;
 main_canv.height = HEIGHT;
 graph_canv.width = GRAPH_WIDTH;
@@ -26,7 +28,7 @@ function get_canv_context(canv) {
 }
 var canv_ctx = get_canv_context(main_canv);
 var graph_ctx = get_canv_context(graph_canv);
-var input_element_ids = ['size-selector', 'k-selector', 'reaction-rate-selector', 'is-probabilistic-checkbox', 'show-empty-checkbox', 'slow-graph-checkbox'];
+var input_element_ids = ['size-selector', 'k-selector', 'reaction-rate-selector', 'is-probabilistic-checkbox', 'show-empty-checkbox', 'slow-graph-checkbox', 'graph-type-checkbox'];
 var grid_size;
 var total_slots_per_side;
 var ball_size;
@@ -37,6 +39,7 @@ var reverse_reaction_rate;
 var is_probabilistic;
 var show_empty_grid;
 var slow_graph;
+var graph_type;
 var net_forward_reaction_amounts = [];
 var forward_reaction_reserve = 0; // for forcing correct in non probabilistic model
 var reverse_reaction_reserve = 0;
@@ -328,6 +331,11 @@ function read_inputs() {
     is_probabilistic = document.getElementById('is-probabilistic-checkbox').checked;
     show_empty_grid = document.getElementById('show-empty-checkbox').checked;
     slow_graph = document.getElementById('slow-graph-checkbox').checked;
+    var old_graph_type = graph_type;
+    graph_type = document.getElementById('graph-type-checkbox').value;
+    if (old_graph_type !== graph_type) {
+        reset_graph();
+    }
 }
 read_inputs();
 for (var _i = 0, input_element_ids_1 = input_element_ids; _i < input_element_ids_1.length; _i++) {
@@ -338,6 +346,8 @@ marble_grids.A.add_buttons(document.getElementById('addition-btns-left'), [-100,
 marble_grids.B.add_buttons(document.getElementById('addition-btns-right'), [-100, -20, -5, -1, 1, 5, 20, 100]);
 var RATE_CONSTANT = 0.025;
 var last_reaction_time = +new Date();
+var total_forward_reaction_rate;
+var total_reverse_reaction_rate;
 function possibly_do_reaction() {
     var reactions_per_sec = is_probabilistic ? 5 : 20;
     if (+new Date() > last_reaction_time + 1000 / reactions_per_sec) {
@@ -367,12 +377,11 @@ function possibly_do_reaction() {
             marble_grids[Side.B].react_to_form(effective_reverse_rate, marble_grids[Side.A], null);
         }
         net_forward_reaction_amounts.push((total_forward - total_reverse) * reactions_per_sec);
-        if (net_forward_reaction_amounts.length > 3 && net_forward_reaction_amounts.length > reactions_per_sec / 2) {
+        if (net_forward_reaction_amounts.length > 3 && net_forward_reaction_amounts.length > reactions_per_sec * 1.5) {
             net_forward_reaction_amounts.shift();
         }
-        // add_graph_data_point([
-        //     marble_grids[Side.A].used.length, marble_grids[Side.B].used.length
-        // ], 1 / REACTIONS_PER_SEC);
+        total_forward_reaction_rate = total_forward * reactions_per_sec;
+        total_reverse_reaction_rate = total_reverse * reactions_per_sec;
     }
 }
 function update_displays() {
@@ -385,7 +394,16 @@ function update_displays() {
     else {
         document.getElementById('center-tab').innerHTML = "";
     }
-    add_grap_data_high_freq([a_total, b_total]);
+    if (graph_type === "concentration") {
+        add_grap_data_high_freq([a_total, b_total]);
+    }
+    else if (graph_type === "percentage") {
+        var total = (a_total + b_total) || 1;
+        add_grap_data_high_freq([a_total / total * 100, b_total / total * 100]);
+    }
+    else if (graph_type === "reaction-rates") {
+        add_grap_data_high_freq([total_forward_reaction_rate, total_reverse_reaction_rate]);
+    }
 }
 function render() {
     possibly_do_reaction();
@@ -400,12 +418,14 @@ function render() {
 }
 var graph_data = [];
 var max_graph_height;
+var desired_max_graph_height;
 var start_graph_index;
 var effective_graph_time;
 var last_data_add_high_freq;
 function reset_graph() {
     graph_data = [];
-    max_graph_height = 5;
+    max_graph_height = 0.01;
+    desired_max_graph_height = 0.01;
     start_graph_index = 0;
     effective_graph_time = 0;
     last_data_add_high_freq = +new Date();
@@ -421,12 +441,19 @@ function add_grap_data_high_freq(data) {
         last_data_add_high_freq = current;
         dt = Math.min(dt, 0.15);
         add_graph_data_point(data, dt);
+        max_graph_height += (desired_max_graph_height - max_graph_height) * 0.2;
     }
 }
 function add_graph_data_point(data, dt) {
     effective_graph_time += dt;
     graph_data.push({ data: data, time: effective_graph_time });
-    max_graph_height = Math.max(max_graph_height, Math.max.apply(Math, data) * 1.1);
+    desired_max_graph_height = Math.max(desired_max_graph_height, Math.max.apply(Math, data) * 1.3);
+}
+function get_graph_point(data_val, time_val, graph_time_width) {
+    return [
+        (time_val - effective_graph_time + graph_time_width) / graph_time_width * (GRAPH_WIDTH - GRAPH_LEFT_MARGIN) + GRAPH_LEFT_MARGIN,
+        (GRAPH_HEIGHT - GRAPH_BOTTOM_MARGIN) - data_val / max_graph_height * (GRAPH_HEIGHT - GRAPH_BOTTOM_MARGIN)
+    ];
 }
 function process_and_render_graph() {
     var graph_time_width = slow_graph ? 120 : 25;
@@ -449,18 +476,134 @@ function process_and_render_graph() {
         graph_ctx.strokeStyle = "rgba(" + marble_grids[({ 0: 'A', 1: 'B' }[trace_num])].get_col_string() + ", 0.7)";
         graph_ctx.beginPath();
         if (start_graph_index < graph_data.length) {
-            var start_x = (graph_data[start_graph_index].time - effective_graph_time + graph_time_width) / graph_time_width * GRAPH_WIDTH;
-            var start_y = GRAPH_HEIGHT - graph_data[start_graph_index].data[trace_num] / max_graph_height * GRAPH_HEIGHT;
-            graph_ctx.moveTo(start_x, start_y);
+            var graph_datum = graph_data[start_graph_index];
+            var _b = get_graph_point(graph_datum.data[trace_num], graph_datum.time, graph_time_width), x = _b[0], y = _b[1];
+            graph_ctx.moveTo(x, y);
         }
         for (var i = start_graph_index; i < graph_data.length; ++i) {
-            var x = (graph_data[i].time - effective_graph_time + graph_time_width) / graph_time_width * GRAPH_WIDTH;
-            var y = GRAPH_HEIGHT - graph_data[i].data[trace_num] / max_graph_height * GRAPH_HEIGHT;
+            var graph_datum = graph_data[i];
+            var _c = get_graph_point(graph_datum.data[trace_num], graph_datum.time, graph_time_width), x = _c[0], y = _c[1];
             graph_ctx.lineTo(x, y);
         }
         graph_ctx.stroke();
         graph_ctx.restore();
     }
+    // DRAW AXIS
+    graph_ctx.save();
+    // VERTICAL AXIS
+    graph_ctx.beginPath();
+    graph_ctx.moveTo(GRAPH_LEFT_MARGIN, 0);
+    graph_ctx.lineTo(GRAPH_LEFT_MARGIN, GRAPH_HEIGHT - GRAPH_BOTTOM_MARGIN);
+    graph_ctx.stroke();
+    // HORIZONTAL AXIS
+    graph_ctx.beginPath();
+    graph_ctx.moveTo(GRAPH_LEFT_MARGIN, GRAPH_HEIGHT - GRAPH_BOTTOM_MARGIN);
+    graph_ctx.lineTo(GRAPH_WIDTH, GRAPH_HEIGHT - GRAPH_BOTTOM_MARGIN);
+    graph_ctx.stroke();
+    {
+        // draw horizontal tickes
+        graph_ctx.save();
+        graph_ctx.textBaseline = "top";
+        graph_ctx.textAlign = "center";
+        // graph_ctx.setLineDash([10, 10]);
+        // graph_ctx.font = "16px monospace";
+        var time_ticker_increment = slow_graph ? 5 : 1;
+        var time_tickers_to_draw = [];
+        var current_time_amt = Math.floor(effective_graph_time / time_ticker_increment) * time_ticker_increment;
+        while (current_time_amt >= 0 && effective_graph_time - current_time_amt <= graph_time_width + time_ticker_increment) {
+            time_tickers_to_draw.push(current_time_amt);
+            current_time_amt -= time_ticker_increment;
+        }
+        for (var _d = 0, time_tickers_to_draw_1 = time_tickers_to_draw; _d < time_tickers_to_draw_1.length; _d++) {
+            var time_ticker_val = time_tickers_to_draw_1[_d];
+            var _e = get_graph_point(0, time_ticker_val, graph_time_width), x = _e[0], wrong_y_val = _e[1];
+            if (x < GRAPH_LEFT_MARGIN)
+                continue;
+            graph_ctx.fillText(time_ticker_val.toString(), x, GRAPH_HEIGHT - GRAPH_BOTTOM_MARGIN + 5);
+            graph_ctx.beginPath();
+            graph_ctx.moveTo(x, GRAPH_HEIGHT - GRAPH_BOTTOM_MARGIN - 3);
+            graph_ctx.lineTo(x, GRAPH_HEIGHT - GRAPH_BOTTOM_MARGIN + 3);
+            // graph_ctx.moveTo(x, 0);
+            // graph_ctx.lineTo(x, GRAPH_HEIGHT - GRAPH_BOTTOM_MARGIN);
+            graph_ctx.stroke();
+        }
+        graph_ctx.restore();
+    }
+    {
+        // draw vertical tickes
+        graph_ctx.save();
+        graph_ctx.textBaseline = "middle";
+        graph_ctx.textAlign = "right";
+        // graph_ctx.setLineDash([10, 10]);
+        // graph_ctx.font = "16px monospace";
+        var value_ticker_increment = graph_type === "reaction-rates" ? 0.001 : 1;
+        while (true) {
+            var next_multipler = value_ticker_increment.toString().includes('2') ? 2.5 : 2;
+            if (value_ticker_increment * next_multipler < max_graph_height / 2.5) {
+                value_ticker_increment *= next_multipler;
+            }
+            else {
+                break;
+            }
+        }
+        var value_tickers_to_draw = [];
+        var current_val_amt = 0;
+        while (current_val_amt < max_graph_height) {
+            value_tickers_to_draw.push(current_val_amt);
+            current_val_amt += value_ticker_increment;
+        }
+        for (var _f = 0, value_tickers_to_draw_1 = value_tickers_to_draw; _f < value_tickers_to_draw_1.length; _f++) {
+            var value_ticker = value_tickers_to_draw_1[_f];
+            var ticker_string = (value_ticker < 1 && value_ticker !== 0) ? value_ticker.toFixed(2) : value_ticker.toString();
+            var _g = get_graph_point(value_ticker, 0, graph_time_width), wrong_x_val = _g[0], y = _g[1];
+            graph_ctx.fillText(ticker_string, GRAPH_LEFT_MARGIN - 5, y);
+            graph_ctx.beginPath();
+            graph_ctx.moveTo(GRAPH_LEFT_MARGIN - 3, y);
+            graph_ctx.lineTo(GRAPH_LEFT_MARGIN + 3, y);
+            graph_ctx.stroke();
+        }
+        graph_ctx.restore();
+    }
+    // draw labels [1 of 4 marks ;) ]
+    var graph_title = "";
+    {
+        // horizontal
+        graph_ctx.save();
+        graph_ctx.font = "16px caption";
+        graph_ctx.textBaseline = "bottom";
+        graph_ctx.textAlign = "center";
+        graph_title += "Time";
+        graph_ctx.fillText("Time (s)", GRAPH_WIDTH / 2, GRAPH_HEIGHT);
+        graph_ctx.restore();
+    }
+    {
+        // vertical
+        graph_ctx.save();
+        graph_ctx.translate(0, GRAPH_HEIGHT / 2);
+        graph_ctx.rotate(-Math.PI / 2);
+        graph_ctx.font = "16px caption";
+        graph_ctx.textBaseline = "top";
+        graph_ctx.textAlign = "center";
+        var label = {
+            "concentration": "Amount",
+            "percentage": "% Total",
+            "reaction-rates": "Reaction rate",
+        }[graph_type] || "";
+        graph_title = label + " vs. " + graph_title;
+        graph_ctx.fillText(label, 0, 5);
+        graph_ctx.restore();
+    }
+    {
+        graph_ctx.save();
+        graph_ctx.textBaseline = "hanging";
+        graph_ctx.textAlign = "center";
+        graph_ctx.font = "12px caption";
+        graph_ctx.fillText(graph_title, GRAPH_WIDTH / 2, 3);
+        graph_ctx.restore();
+    }
+    // clear overun from tickers
+    // graph_ctx.clearRect(0, GRAPH_HEIGHT - GRAPH_BOTTOM_LEFT_MARGINS, GRAPH_BOTTOM_LEFT_MARGINS, GRAPH_BOTTOM_LEFT_MARGINS);
+    graph_ctx.restore();
     graph_ctx.restore();
 }
 render();
