@@ -436,6 +436,10 @@ function update_displays() {
         add_grap_data_high_freq([a_total / total * 100, b_total / total * 100]);
     } else if(graph_type === "reaction-rates") {
         add_grap_data_high_freq([total_forward_reaction_rate, total_reverse_reaction_rate]);
+    } else if(graph_type === "log-amt") {
+        add_grap_data_high_freq([Math.log(a_total || 0.1) / Math.log(10), Math.log(b_total || 0.1) / Math.log(10)]);
+    } else {
+        console.log(graph_type);
     }
 }
 
@@ -588,10 +592,10 @@ function process_and_render_graph() {
         graph_ctx.textAlign = "right";
         // graph_ctx.setLineDash([10, 10]);
         // graph_ctx.font = "16px monospace";
-        let value_ticker_increment = graph_type === "reaction-rates" ? 0.001 : 1;
+        let value_ticker_increment = ["reaction-rates", "log-amt"].includes(graph_type) ? 0.001 : 1;
         while(true) {
             const next_multipler = value_ticker_increment.toString().includes('2') ? 2.5 : 2;
-            if(value_ticker_increment * next_multipler < max_graph_height / 2.5) {
+            if(value_ticker_increment * next_multipler < max_graph_height / 3) {
                 value_ticker_increment *= next_multipler;
             } else {
                 break;
@@ -600,7 +604,11 @@ function process_and_render_graph() {
         let value_tickers_to_draw = [];
         let current_val_amt = 0;
         while(current_val_amt < max_graph_height) {
-            value_tickers_to_draw.push(current_val_amt);
+            if((graph_type !== "percentage") || current_val_amt <= 100) {
+                value_tickers_to_draw.push(current_val_amt);
+            } else {
+                console.log(current_val_amt);
+            }
             current_val_amt += value_ticker_increment;
         }
         for(let value_ticker of value_tickers_to_draw) {
@@ -639,6 +647,7 @@ function process_and_render_graph() {
             "concentration": "Amount",
             "percentage": "% Total",
             "reaction-rates": "Reaction rate",
+            "log-amt": "log(Amount)",
         })[graph_type] || "";
         graph_title = label + " vs. " +graph_title;
         graph_ctx.fillText(label, 0, 5);
